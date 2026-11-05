@@ -3004,29 +3004,125 @@ def _open_folder_worker(path: Path):
         pass
     subprocess.Popen(["xdg-open", str(path)])
 
+def _apply_kde_platform_theme():
+    """Select the 'plasma' Qt platform theme explicitly on KDE/Plasma
+    desktops — must run BEFORE any QApplication is created.
+
+    The frozen bundle ships the Plasma platform theme plugin (the one
+    that provides the native KFileDialog with the location bar), but
+    Qt's automatic theme detection does not find it in the PyInstaller
+    context — the folder picker silently fell back to the built-in Qt
+    dialog, whose file list could render empty. On non-KDE desktops
+    Qt's own choice (GTK / xdg-desktop-portal) is left alone."""
+    if os.name != "posix":
+        return
+    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "")
+    if ("KDE" in desktop or "Plasma" in desktop) and \
+            not os.environ.get("QT_QPA_PLATFORMTHEME"):
+        os.environ["QT_QPA_PLATFORMTHEME"] = "plasma"
+
+def _mounted_drive_dirs():
+    """User-visible mounts under /run/media and /media (USB sticks,
+    Veracrypt volumes, ...). Shown as sidebar bookmarks in the built-in
+    folder picker, which otherwise only lists 'Computer' and the home
+    dir — the native KDE picker's drive list is not available there."""
+    out = []
+    try:
+        mounted = set()
+        with open("/proc/mounts", "r", encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                parts = line.split()
+                if len(parts) >= 2:
+                    mounted.add(parts[1])
+        for base in ("/run/media", "/media"):
+            if os.path.isdir(base):
+                for name in sorted(os.listdir(base)):
+                    p = os.path.join(base, name)
+                    if os.path.isdir(p) and p in mounted:
+                        out.append(p)
+    except Exception:
+        pass
+    return out
+
 def pick_directory(parent, title, start_dir):
-    """Folder picker. In a real desktop session (not sandboxed) the native
-    KDE dialog is used — it has a location bar where you can type or paste
-    a full path (Ctrl+L focuses it). Under a sandbox the native dialog
-    needs a KIO worker and fails ("Unable to create KIO worker"), so the
-    Qt built-in dialog is used instead (a pasted path can be entered in
-    the bottom 'File name' field and opened). Returns a resolved Path,
-    or None if the user cancels."""
-    from PySide6.QtCore import Qt
+    """Folder picker. On Linux the Qt built-in dialog is used (not the
+    native KDE one): the native picker runs KIO in a worker process, and
+    KF6 6.31-era builds fail to create its socket ("Unable to create KIO
+    worker ... protocol 'tags'"), leaving an empty file list in frozen
+    apps. The built-in picker lists mounted drives as sidebar bookmarks,
+    and a full path can be typed into the 'Directory' field. On Windows
+    the native picker is used. Returns a resolved Path, or None if the
+    user cancels."""
+    from PySide6.QtCore import Qt, QTimer
     from PySide6.QtWidgets import QApplication, QFileDialog
     app = QApplication.instance()
     if app is not None:
-        app.setAttribute(Qt.AA_DontUseNativeDialogs, SANDBOXED)
+        # Dark palette BEFORE the dialog is shown (run_gui applies it
+        # later, but the picker opens first).
+        try:
+            if not app.property("_df_dark_applied"):
+                _apply_dark_theme(app)
+                app.setProperty("_df_dark_applied", True)
+        except Exception:
+            pass
+        # Linux: deterministic built-in picker (see docstring).
+        app.setAttribute(Qt.AA_DontUseNativeDialogs, os.name == "posix")
     dlg = QFileDialog(parent, title, str(start_dir))
     dlg.setFileMode(QFileDialog.FileMode.Directory)  # Qt6 name of DirectoryOnly
     opts = [QFileDialog.Option.ShowDirsOnly]
-    if SANDBOXED:
+    if SANDBOXED or os.name == "posix":
         opts.append(QFileDialog.Option.DontUseNativeDialog)
     for opt in opts:
         try:
             dlg.setOption(opt, True)
         except TypeError:
             pass
+    if os.name == "posix":
+        # Restore the drive list the native KDE picker showed in its
+        # sidebar: setSidebarUrls() (Qt 6.12) replaces the sidebar's
+        # default entries ('Computer' + home), so include them first.
+        try:
+            from PySide6.QtCore import QDir, QUrl
+            urls = [QUrl("file:"), QUrl.fromLocalFile(QDir.homePath())]
+            urls += [QUrl.fromLocalFile(d) for d in _mounted_drive_dirs()]
+            dlg.setSidebarUrls(urls)
+        except Exception:
+            pass
+    # The built-in dialog (used when no platform theme provides a native
+    # picker): its internal QFileSystemModel loads the initial directory
+    # ASYNCHRONOUSLY, and if it is not ready when the dialog sets the
+    # view's root index, the list falls back to the filesystem top level
+    # (the "Computer" view) and STAYS there — the user sees an empty
+    # list in every directory (Qt 6.12). The view's root index cannot be
+    # fixed before the model exists (the dialog creates it in
+    # showEvent), so instead we watch the model and re-root the view as
+    # soon as the current directory is loaded. Harmless when a platform
+    # (native) dialog is in use: no QFileSystemModel is found.
+    _hooked = []
+    _dbg = os.environ.get("DF_PICKER_DEBUG") == "1"
+    def _resync_picker_view(*_args):
+        if _dbg:
+            print("RESYNC-CALL", flush=True)
+        try:
+            from PySide6.QtWidgets import QAbstractItemView, QFileSystemModel
+            cur = str(dlg.directory().path() or str(start_dir))
+            for v in dlg.findChildren(QAbstractItemView):
+                m = v.model()
+                if not isinstance(m, QFileSystemModel):
+                    continue
+                idx = m.index(cur)  # str overload (QUrl is not wrapped)
+                if _dbg:
+                    print("RESYNC-VIEW cur=%s valid=%s rootPath=%s"
+                          % (cur, idx.isValid(), m.rootPath()), flush=True)
+                if idx.isValid():
+                    v.setRootIndex(idx)
+                if m not in _hooked:
+                    _hooked.append(m)
+                    m.directoryLoaded.connect(_resync_picker_view)
+        except Exception:
+            pass
+    for _delay in (30, 100, 250, 500, 1000, 2000, 3000, 5000):
+        QTimer.singleShot(_delay, _resync_picker_view)
     if dlg.exec() != QFileDialog.DialogCode.Accepted:
         return None
     sel = dlg.selectedFiles()
@@ -5478,6 +5574,7 @@ def run_gui(root: Path, include_hidden=False, all_dirs=False):
         box.setDefaultButton(QMessageBox.No)
         return box.exec() == QMessageBox.Yes
 
+    _apply_kde_platform_theme()
     app = QApplication.instance() or QApplication(sys.argv)
     # dark palette for dialogs + dark caption bars on every window
     # (see _apply_dark_theme — without it a QMessageBox body falls back
@@ -5718,6 +5815,7 @@ def main():
 
     if args.directory is None:
         from PySide6.QtWidgets import QApplication
+        _apply_kde_platform_theme()
         app = QApplication.instance() or QApplication(sys.argv)
         app.setApplicationName("dupe-finder")
         app.setOrganizationName("deepseek-harness")
@@ -5736,6 +5834,7 @@ def main():
             # be wrong (a silent exit with no message reads as an
             # "instant crash")
             from PySide6.QtWidgets import QApplication
+            _apply_kde_platform_theme()
             app = QApplication.instance() or QApplication(sys.argv)
             app.setApplicationName("dupe-finder")
             app.setOrganizationName("deepseek-harness")
