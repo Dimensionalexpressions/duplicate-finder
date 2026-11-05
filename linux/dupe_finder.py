@@ -881,6 +881,72 @@ def _safe_stat(p, timeout=STAT_TIMEOUT):
     return res[0] if res and not t.is_alive() else None
 
 
+def _fp_cache_dir() -> Path:
+    return (Path(os.environ.get("XDG_CACHE_HOME",
+                                Path.home() / ".cache"))
+            / "dupe-finder")
+
+
+def _fp_cache_info():
+    """(fingerprint_count, size_bytes) of the cache DB; (0, 0) if absent."""
+    p = _fp_cache_dir() / "fingerprints.sqlite3"
+    try:
+        sz = p.stat().st_size
+    except OSError:
+        return 0, 0
+    n = 0
+    try:
+        import sqlite3
+        c = sqlite3.connect(f"file:{p}?mode=ro", uri=True, timeout=5)
+        n = int(c.execute("SELECT COUNT(*) FROM fp").fetchone()[0])
+        c.close()
+    except Exception:
+        pass
+    return n, sz
+
+
+def _clear_fp_cache() -> None:
+    """Delete the fingerprint cache (DB + any SQLite side files).
+
+    FPCache instances are short-lived (open per scan stage, closed by
+    GC), so when no scan is running nothing holds the file open. If a
+    background worker does hold an old connection, its writes go to the
+    unlinked inode and the next FPCache() starts a fresh database —
+    never a corrupt one."""
+    d = _fp_cache_dir()
+    for name in ("fingerprints.sqlite3", "fingerprints.sqlite3-wal",
+                 "fingerprints.sqlite3-shm"):
+        try:
+            (d / name).unlink()
+        except OSError:
+            pass
+
+
+def _prefs_path() -> Path:
+    return (Path(os.environ.get("XDG_CONFIG_HOME",
+                                Path.home() / ".config"))
+            / "dupe-finder" / "preferences.json")
+
+
+def _load_prefs() -> dict:
+    try:
+        import json
+        d = json.loads(_prefs_path().read_text())
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _save_prefs(d: dict) -> None:
+    try:
+        import json
+        p = _prefs_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(d, indent=1))
+    except Exception:
+        pass
+
+
 def _fingerprint_with_cache(paths, progress, interrupted=None):
     """Fingerprint all paths, using the SQLite cache for unchanged files.
 
@@ -4428,6 +4494,26 @@ def run_gui(root: Path, include_hidden=False, all_dirs=False):
             b("export CSV", self._export,
               "Write a CSV list of every group, with one line per "
               "file: group, name, size, date, keep/dup mark.")
+            b("🧹 clear cache", self._clear_cache,
+              "Delete the stored fingerprints (hashes, thumbnails, "
+              "OCR text) so the next scan re-fingerprints every file "
+              "from scratch.\n\n"
+              "Your results on screen are NOT touched — only the "
+              "cache is deleted. The first scan after clearing is "
+              "slow again; every following scan of unchanged files "
+              "is fast until the cache grows back.")
+            self._clear_close = QCheckBox("clear cache on close")
+            self._clear_close.setChecked(
+                bool(_load_prefs().get("clear_cache_on_close")))
+            self._clear_close.setToolTip(
+                "Delete the fingerprint cache automatically when the "
+                "app closes.\n\n"
+                "Use it if you do not want multi-gigabyte caches "
+                "lingering on disk. The next scan re-fingerprints "
+                "everything (slower), and the cache rebuilds as you "
+                "scan. Your results and keep-marks are not touched.")
+            self._clear_close.toggled.connect(self._clear_close_toggled)
+            bar.addWidget(self._clear_close)
             b("close", self.close,
               "Close dupe-finder.")
             bar.setContentsMargins(12, 8, 12, 8)
@@ -4978,6 +5064,37 @@ def run_gui(root: Path, include_hidden=False, all_dirs=False):
             self.status.showMessage(f"scanning {new_root} …")
             self._start_worker(new_root)
 
+        def _clear_close_toggled(self, on):
+            d = _load_prefs()
+            d["clear_cache_on_close"] = bool(on)
+            _save_prefs(d)
+
+        def _clear_cache(self):
+            if self._scanning:
+                self.status.showMessage(
+                    "wait for the scan to finish, then clear the cache",
+                    6000)
+                return
+            n, sz = _fp_cache_info()
+            if n == 0 and sz == 0:
+                self.status.showMessage(
+                    "fingerprint cache is already empty", 6000)
+                return
+            r = QMessageBox.question(
+                self, "Clear fingerprint cache",
+                f"Delete the fingerprint cache?\n"
+                f"({n:,} stored fingerprints, {human(sz)} on disk)\n\n"
+                "The results on screen stay as they are. The next "
+                "scan re-fingerprints every file from scratch — a "
+                "first scan on a big library takes minutes again.",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if r != QMessageBox.Yes:
+                return
+            _clear_fp_cache()
+            self.status.showMessage(
+                "fingerprint cache cleared — the next scan will "
+                "re-fingerprint everything", 8000)
+
         def closeEvent(self, ev):
             w = self._worker
             if w is not None:
@@ -4999,6 +5116,14 @@ def run_gui(root: Path, include_hidden=False, all_dirs=False):
                 _live_workers.add(w)
                 self._worker = None
                 w.requestInterruption()
+            if (getattr(self, "_clear_close", None) is not None
+                    and self._clear_close.isChecked()):
+                # the user asked for no cache to outlive the app. A
+                # still-running worker may commit to the (now
+                # unlinked) database a moment later — harmless, and if
+                # it opens a fresh FPCache afterwards that file is a
+                # valid partial cache, never a corrupt one.
+                _clear_fp_cache()
             ev.accept()
 
         def _rescan_done(self, token):
