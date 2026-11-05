@@ -3046,6 +3046,162 @@ def _mounted_drive_dirs():
         pass
     return sorted(out)
 
+def _human_size(n):
+    """IEC human size, e.g. '256.0 GiB', '1.9 TiB'."""
+    try:
+        n = float(n)
+    except (TypeError, ValueError):
+        return None
+    units = ("B", "KiB", "MiB", "GiB", "TiB", "PiB")
+    i = 0
+    while n >= 1024.0 and i < len(units) - 1:
+        n /= 1024.0
+        i += 1
+    return "%d B" % int(n) if i == 0 else "%.1f %s" % (n, units[i])
+
+def _dm_device_for_mapper_name(name):
+    """dm-N whose dm/name == name, via /sys/class/block (works even when
+    /dev/mapper is not present, e.g. under a sandboxed test run)."""
+    try:
+        for cand in os.listdir("/sys/class/block"):
+            if not cand.startswith("dm-"):
+                continue
+            try:
+                if open("/sys/class/block/%s/dm/name" % cand).read().strip() == name:
+                    return cand
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return None
+
+def _block_device_info(dev):
+    """(size_bytes|None, model|None) for a block device or mapper name,
+    following dm indirection to the underlying disk (e.g. a LUKS volume
+    on nvme0n1p2 resolves to the disk model)."""
+    import re
+    size = model = None
+    try:
+        bname = None
+        if dev.startswith("/dev/mapper/"):
+            bname = _dm_device_for_mapper_name(dev.rsplit("/", 1)[-1])
+            if not bname:
+                bname = os.path.realpath(dev).rsplit("/", 1)[-1]
+        else:
+            bname = os.path.realpath(dev).rsplit("/", 1)[-1]
+        if not bname:
+            return None, None
+        def _size_of(base):
+            try:
+                return int(open("/sys/block/%s/size" % base).read()) * 512
+            except Exception:
+                return None
+        m = re.match(r"^(.*?)(p?\d+)$", bname)
+        base = m.group(1) if m else bname
+        size = _size_of(bname)
+        if not size and base != bname:
+            size = _size_of(base)  # partition size node missing -> disk size
+        def _model_of(base):
+            try:
+                return open("/sys/block/%s/device/model" % base).read().strip() or None
+            except Exception:
+                return None
+        slaves = "/sys/block/%s/slaves" % bname
+        if os.path.isdir(slaves):
+            for s in os.listdir(slaves):
+                m = re.match(r"^(.*?)(p?\d+)$", s)
+                model = _model_of(m.group(1) if m else s)
+                if model:
+                    break
+        if not model:
+            m = re.match(r"^(.*?)(p?\d+)$", bname)
+            model = _model_of(m.group(1) if m else bname)
+    except Exception:
+        pass
+    return size, model
+
+def _drive_friendly_name(mp):
+    """Dolphin-style name for a mount point: size + device/label,
+    e.g. '1.9 TiB ADATA SX8200PNP', '256.0 GiB veracrypt1',
+    '3.7 TiB CT4000P310SSD8'."""
+    try:
+        dev = None
+        with open("/proc/mounts", "r", encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                parts = line.split()
+                if len(parts) >= 2 and parts[1] == mp:
+                    dev = parts[0]
+                    break
+        if not dev:
+            return None
+        if dev.startswith("/dev/mapper/"):
+            mapper_name = dev.rsplit("/", 1)[-1]
+            size, model = _block_device_info(dev)
+            # a LUKS root volume names after its disk model; a Veracrypt
+            # volume (loop-backed, no model) keeps its mapper name
+            name = model or mapper_name
+        else:
+            size, model = _block_device_info(dev)
+            name = model
+            if not name:
+                try:
+                    import subprocess
+                    lab = subprocess.run(
+                        ["btrfs", "fi", "label", mp],
+                        capture_output=True, text=True, timeout=5
+                    ).stdout.strip()
+                    name = lab or None
+                except Exception:
+                    pass
+        if not name:
+            name = mp.rsplit("/", 1)[-1] or "root"
+        sz = _human_size(size) if size else None
+        return ("%s %s" % (sz, name)) if sz else name
+    except Exception:
+        return None
+
+def _drive_sidebar_paths():
+    """Sidebar paths for drives with friendly folder names. The built-in
+    picker labels sidebar entries by folder name (that is why a raw
+    mount point would show its UUID), so each drive — including the
+    root drive behind 'Computer' — gets a friendly-named symlink
+    (e.g. '1.9 TiB ADATA SX8200PNP') pointing at its real mount point.
+    Links are rebuilt on every call so the list tracks current mounts."""
+    out = []
+    linkdir = os.path.join(os.path.expanduser("~"), ".local", "share",
+                           "dupe-finder", "drivelinks")
+    try:
+        os.makedirs(linkdir, exist_ok=True)
+        for e in os.listdir(linkdir):
+            p = os.path.join(linkdir, e)
+            if os.path.islink(p):
+                try:
+                    os.unlink(p)
+                except OSError:
+                    pass
+    except Exception:
+        linkdir = None
+    if not linkdir:
+        return out
+    targets = ["/"] + _mounted_drive_dirs()
+    used = set()
+    for mp in targets:
+        label = _drive_friendly_name(mp) or (mp.rstrip("/").rsplit("/", 1)[-1] or "Computer")
+        base = label.replace(os.sep, "-").replace("/", "-")
+        cand, i = base, 2
+        while cand in used:
+            cand = "%s-%d" % (base, i)
+            i += 1
+        used.add(cand)
+        lp = os.path.join(linkdir, cand)
+        try:
+            os.symlink(mp, lp)
+            if os.path.isdir(lp):  # not dangling
+                out.append(lp)
+        except Exception:
+            continue
+    return out
+
 def _home_place_dirs():
     """Standard home sub-locations that exist on disk (Dolphin's
     'Places' equivalents for the built-in picker sidebar)."""
@@ -3102,7 +3258,7 @@ def pick_directory(parent, title, start_dir):
             from PySide6.QtCore import QDir, QUrl
             urls = [QUrl("file:"), QUrl.fromLocalFile(QDir.homePath())]
             urls += [QUrl.fromLocalFile(d) for d in _home_place_dirs()]
-            urls += [QUrl.fromLocalFile(d) for d in _mounted_drive_dirs()]
+            urls += [QUrl.fromLocalFile(d) for d in _drive_sidebar_paths()]
             dlg.setSidebarUrls(urls)
         except Exception:
             pass
