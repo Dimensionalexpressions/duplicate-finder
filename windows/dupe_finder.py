@@ -3030,22 +3030,21 @@ def _mounted_drive_dirs():
     soon as it is mounted and disappears when unmounted."""
     out = []
     try:
-        mounted = set()
+        bases = ("/run/media", "/media", "/mnt")
         with open("/proc/mounts", "r", encoding="utf-8", errors="replace") as fh:
             for line in fh:
                 parts = line.split()
-                if len(parts) >= 2:
-                    mounted.add(parts[1])
-        for base in ("/run/media", "/media", "/mnt"):
-            if not os.path.isdir(base):
-                continue
-            for entry in sorted(os.listdir(base)):
-                p = os.path.join(base, entry)
-                if os.path.isdir(p) and p in mounted:
-                    out.append(p)
+                if len(parts) < 2:
+                    continue
+                mp = parts[1]
+                # any depth under a media base (udisks2 mounts user
+                # drives at /run/media/<user>/<uuid>)
+                if any(mp == b or mp.startswith(b + "/") for b in bases) \
+                        and os.path.isdir(mp):
+                    out.append(mp)
     except Exception:
         pass
-    return out
+    return sorted(out)
 
 def _home_place_dirs():
     """Standard home sub-locations that exist on disk (Dolphin's
