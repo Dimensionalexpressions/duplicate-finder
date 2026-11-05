@@ -135,27 +135,25 @@ jobs:
           Remove-Item ship -Recurse
           Get-Item $z | Format-Table Name, Length
 
-      - name: Authenticode sign zip + verify (only when cert exists)
+      # The executables and DLLs were signed in place above; the zip itself
+      # cannot be Authenticode-signed (signtool only signs PE files) — so
+      # this step verifies the main exe and prints the zip's SHA-256 for
+      # the release notes.
+      - name: Verify signatures + print zip SHA-256 (only when cert exists)
         shell: pwsh
         env:
           CERT_P12_B64: ${{ secrets.CERT_P12_B64 }}
-          CERT_P12_PASSWORD: ${{ secrets.CERT_P12_PASSWORD }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:CERT_P12_B64)) {
             Write-Host "signing skipped (no cert secret)"
             exit 0
           }
-          if (-not (Test-Path cert.p12)) {
-            [IO.File]::WriteAllBytes("cert.p12", [Convert]::FromBase64String($env:CERT_P12_B64))
-          }
-          $zip = Get-ChildItem *.zip | Select-Object -First 1
-          Write-Host "signing $($zip.FullName)"
-          & $env:SIGNTOOL sign /f cert.p12 /p $env:CERT_P12_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $zip.FullName
-          if ($LASTEXITCODE -ne 0) { throw "signtool sign failed: $($zip.FullName)" }
-          Write-Host "=== signtool verify /pa /v ==="
+          Write-Host "=== signtool verify /pa /v on dupe_finder.exe ==="
           & $env:SIGNTOOL verify /pa /v "windows\dist\dupe_finder\dupe_finder.exe"
           if ($LASTEXITCODE -ne 0) { throw "signtool verify failed" }
-          Remove-Item cert.p12 -Force
+          $zip = Get-ChildItem *.zip | Select-Object -First 1
+          $h = (Get-FileHash $zip.FullName -Algorithm SHA256).Hash
+          Write-Host "sha256($h)  $($zip.Name)"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
