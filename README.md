@@ -32,7 +32,7 @@ For a graphical application, an About, Credits, or Acknowledgments screen is sui
 
 ## Donations
 
-Support for continued development may be offered voluntarily. Donations are never required to download, use, modify, or distribute the software and do not affect the rights granted by FUAL-1.0.
+Support for continued development may be offered voluntarily through the official Square payment account of Dimensional Expressions LLC. Donations are payable to Dimensional Expressions LLC, not to an individual developer. Donations are never required to download, use, modify, or distribute the software and do not affect the rights granted by FUAL-1.0. The public Square donation link will be added here once finalized.
 
 ## Third-party components
 
