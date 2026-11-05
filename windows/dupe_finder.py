@@ -3022,10 +3022,12 @@ def _apply_kde_platform_theme():
         os.environ["QT_QPA_PLATFORMTHEME"] = "plasma"
 
 def _mounted_drive_dirs():
-    """User-visible mounts under /run/media and /media (USB sticks,
-    Veracrypt volumes, ...). Shown as sidebar bookmarks in the built-in
-    folder picker, which otherwise only lists 'Computer' and the home
-    dir — the native KDE picker's drive list is not available there."""
+    """User-visible mounts under /run/media, /media and /mnt (USB sticks,
+    Veracrypt volumes, ...). Shown in the built-in folder picker's
+    sidebar, which otherwise only lists 'Computer' and the home dir —
+    the native KDE picker's drive list is not available there. Only
+    mounts that actually exist are listed, so a drive appears here as
+    soon as it is mounted and disappears when unmounted."""
     out = []
     try:
         mounted = set()
@@ -3034,12 +3036,28 @@ def _mounted_drive_dirs():
                 parts = line.split()
                 if len(parts) >= 2:
                     mounted.add(parts[1])
-        for base in ("/run/media", "/media"):
-            if os.path.isdir(base):
-                for name in sorted(os.listdir(base)):
-                    p = os.path.join(base, name)
-                    if os.path.isdir(p) and p in mounted:
-                        out.append(p)
+        for base in ("/run/media", "/media", "/mnt"):
+            if not os.path.isdir(base):
+                continue
+            for entry in sorted(os.listdir(base)):
+                p = os.path.join(base, entry)
+                if os.path.isdir(p) and p in mounted:
+                    out.append(p)
+    except Exception:
+        pass
+    return out
+
+def _home_place_dirs():
+    """Standard home sub-locations that exist on disk (Dolphin's
+    'Places' equivalents for the built-in picker sidebar)."""
+    out = []
+    try:
+        home = os.path.expanduser("~")
+        for name in ("Desktop", "Documents", "Downloads", "Music",
+                     "Pictures", "Videos", "Public"):
+            p = os.path.join(home, name)
+            if os.path.isdir(p):
+                out.append(p)
     except Exception:
         pass
     return out
@@ -3084,6 +3102,7 @@ def pick_directory(parent, title, start_dir):
         try:
             from PySide6.QtCore import QDir, QUrl
             urls = [QUrl("file:"), QUrl.fromLocalFile(QDir.homePath())]
+            urls += [QUrl.fromLocalFile(d) for d in _home_place_dirs()]
             urls += [QUrl.fromLocalFile(d) for d in _mounted_drive_dirs()]
             dlg.setSidebarUrls(urls)
         except Exception:
