@@ -2987,10 +2987,31 @@ def run_gui(root: Path, include_hidden=False, all_dirs=False):
         closes itself the moment the arrangement completes. Instant
         arrangements (small groups, cached layouts, documents) never
         show it — no window when there is nothing to wait for."""
-        def __init__(self, page, mainwin):
+        def __init__(self, page, mainwin, count=0):
             super().__init__(page)
             self._page = page
-            self.setWindowTitle("Arranging cards…")
+            title = (f"Arranging {count:,} cards…" if count
+                     else "Arranging cards…")
+            self.setWindowTitle(title)
+            # self-contained dark look: this window is shown mid-build
+            # while the main thread is busy painting the card grid, and
+            # on Windows the first visible frame can land before the
+            # app-wide stylesheet/palette reach it — a white, empty
+            # "flash bang". An explicit per-widget stylesheet is in
+            # place from construction, so the very first paint is
+            # already dark with content.
+            self.setStyleSheet(
+                "QDialog { background: #1b1f27; }"
+                "QLabel { color: #dde4ee; background: transparent; }"
+                "QProgressBar { background: #14171d;"
+                " border: 1px solid #2c333f; border-radius: 5px;"
+                " min-height: 14px; text-align: center; color: #dde4ee; }"
+                "QProgressBar::chunk { background: #4a90d9;"
+                " border-radius: 4px; }"
+                "QPushButton { background: #2a323e;"
+                " border: 1px solid #414c5d; border-radius: 7px;"
+                " padding: 6px 14px; font-weight: 600; color: #e6ebf3; }"
+                "QPushButton:hover { background: #333e4d; }")
             self.setModal(False)
             # Qt (not the Python GC) deletes the C++ dialog when it
             # closes: a Python-owned wrapper collected later would
@@ -3005,7 +3026,7 @@ def run_gui(root: Path, include_hidden=False, all_dirs=False):
             lay = QVBoxLayout(self)
             lay.setContentsMargins(16, 14, 16, 12)
             lay.setSpacing(9)
-            self._head = QLabel("Please wait")
+            self._head = QLabel(title)
             self._head.setStyleSheet("font-weight:bold;font-size:15px;")
             lay.addWidget(self._head)
             self.info = QLabel(
@@ -3694,10 +3715,23 @@ def run_gui(root: Path, include_hidden=False, all_dirs=False):
                 mainwin = self.window()
             except Exception:
                 mainwin = None
-            self._wait_dlg = ArrangeWaitDialog(self, mainwin)
+            self._wait_dlg = ArrangeWaitDialog(
+                self, mainwin, len(self.group.members))
             self._wait_dlg.set_progress(job["pct"])
             self._wait_dlg.show()
             self._wait_dlg.raise_()
+            # This is shown while the page build keeps running on this
+            # thread: Windows maps the new top-level window at once
+            # (default white class brush) but Qt's first paint of it
+            # cannot happen until the event loop turns — which is
+            # minutes away for a huge group's card grid. The user sees
+            # an empty white window the whole time. Flush one event
+            # round NOW so the dialog paints (dark, with content)
+            # before the heavy build continues.
+            try:
+                QApplication.processEvents()
+            except Exception:
+                pass
 
         def _start_match_poll(self):
             """Watch the shared job; when it finishes, apply its layout
