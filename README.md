@@ -6,6 +6,7 @@ A Python-based duplicate file manager for pictures, videos, and documents.
 
 **Dimensional Expressions Software**  
 Published by **Dimensional Expressions LLC** (Ohio).
+Coding assisted with local LLM model
 
 Originally conceived and developed by **Coty Julien**.
 
