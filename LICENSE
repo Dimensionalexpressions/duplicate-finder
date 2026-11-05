@@ -1,0 +1,86 @@
+Free Use Attribution License (FUAL-1.0)
+
+Copyright (c) 2026 Coty Julien. All rights reserved.
+Published by Dimensional Expressions LLC.
+
+This license applies only to material for which the copyright holder has the right to grant these permissions. Third-party components remain subject to their own licenses.
+
+1. Definitions
+
+"Software" means the software, source code, documentation, and other materials distributed with this license by the copyright holder.
+
+"Personal or Noncommercial Use" means use by an individual for personal, educational, hobby, or other purposes that are not intended to generate commercial advantage or monetary compensation.
+
+"Commercial Use" means any use by or for a business, company, organization, or other commercial activity, including internal business use, evaluation as part of business operations, incorporation into a commercial product or service, deployment for employees or customers, distribution, or resale. Commercial Use does not require that the Software itself be sold or generate revenue.
+
+"Attribution" means a reasonably accessible notice identifying the original developer and publisher and containing a clickable link to the original project or its official project page.
+
+2. Permission Grant
+
+Subject to the terms of this license, the copyright holder grants every recipient a worldwide, perpetual, non-exclusive, royalty-free license to use, run, reproduce, copy, modify, adapt, and create derivative works of the Software, and to distribute, publish, sublicense, incorporate, deploy, and resell the Software and modified versions.
+
+No license fee, royalty, payment, donation, or other compensation is required for any use permitted by this license.
+
+3. Personal and Noncommercial Use
+
+Attribution is not required for Personal or Noncommercial Use. Individuals may use, modify, copy, and redistribute the Software for those purposes without providing a link or credit, provided they comply with applicable third-party licenses and preserve notices where required by Section 6.
+
+4. Commercial Use and Attribution
+
+Every Commercial Use requires Attribution. This requirement applies even when the Software is used only internally, is not sold, is modified, or is incorporated into a larger product or service.
+
+Attribution must be reasonably accessible to the people who use, receive, or are materially affected by the Software:
+
+- Desktop or graphical applications: include the notice in an About, Credits, Acknowledgments, or equivalent screen or menu.
+- Internal tools or software without a user interface: include the notice in accessible internal documentation, a software inventory record, or an internal credits page.
+- Customer-facing products or services: make the notice accessible to customers or users, such as in an About, Credits, Acknowledgments, documentation, or equivalent page.
+- Redistributed source or binary packages: include the notice in accompanying documentation or a notices file and, where practical, in the application itself.
+
+The Attribution must not be hidden, misleading, or presented in a way that implies the original developer or publisher endorses the user's product, service, or modifications.
+
+Unless the original project specifies a different notice, use:
+
+"Originally conceived and developed by Coty Julien. Published by Dimensional Expressions LLC."
+"Original project: https://github.com/Dimensionalexpressions/duplicate-finder"
+
+5. Modifications and Proprietary Works
+
+You may modify the Software, create derivative works, and combine it with other software. You may keep your modifications, additions, configurations, and larger proprietary works private. This license does not require you to publish or disclose your modifications or proprietary additions.
+
+If you distribute the original Software or a derivative that contains it, the applicable Attribution requirement in Section 4 still applies to Commercial Use.
+
+6. Notices and Third-Party Materials
+
+When redistributing the Software, do not remove or misrepresent existing copyright, license, or attribution notices. Include this license and applicable notices with redistributed copies.
+
+The Software may include or depend on third-party software, libraries, assets, or other materials. Those components are governed by their own licenses and terms. This license does not replace, override, or expand rights under any third-party license. Review THIRD-PARTY-NOTICES.md and the relevant component licenses before redistribution.
+
+7. Optional Donations
+
+Donations or sponsorships may be offered to support development. They are entirely voluntary. No donation, payment, or contribution is required to obtain or exercise any right under this license, and declining to donate does not reduce the permissions granted.
+
+8. Termination
+
+The permissions granted by this license terminate automatically if you materially fail to comply with its terms. If the violation is cured within 30 days after you become aware of it, the permissions are reinstated, subject to applicable law. Termination does not affect the rights of recipients who received copies or permissions from you in compliance with this license before termination.
+
+9. Disclaimer of Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, WHETHER EXPRESS, IMPLIED, OR STATUTORY, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, ACCURACY, RELIABILITY, OR THAT THE SOFTWARE WILL BE UNINTERRUPTED, ERROR-FREE, SECURE, OR FREE OF DEFECTS.
+
+YOU ASSUME ALL RISK ARISING FROM INSTALLING, USING, MODIFYING, OR DISTRIBUTING THE SOFTWARE. YOU ARE RESPONSIBLE FOR BACKUPS, VALIDATING RESULTS, AND DETERMINING WHETHER THE SOFTWARE IS SUITABLE FOR YOUR ENVIRONMENT.
+
+10. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE COPYRIGHT HOLDER, ORIGINAL DEVELOPER, AND PUBLISHER SHALL NOT BE LIABLE FOR ANY DAMAGES OR LOSSES ARISING OUT OF OR RELATED TO THE SOFTWARE OR THIS LICENSE, INCLUDING LOSS OR CORRUPTION OF DATA, FILES OR SYSTEMS; SECURITY INCIDENTS; SYSTEM FAILURE OR DOWNTIME; LOSS OF PROFITS, REVENUE, BUSINESS, OR GOODWILL; OR ANY INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, PUNITIVE, OR CONSEQUENTIAL DAMAGES, WHETHER IN CONTRACT, TORT, OR OTHERWISE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE TOTAL LIABILITY OF THE COPYRIGHT HOLDER, ORIGINAL DEVELOPER, AND PUBLISHER FOR ALL CLAIMS RELATING TO THE SOFTWARE OR THIS LICENSE SHALL NOT EXCEED THE AMOUNT, IF ANY, THAT YOU PAID DIRECTLY TO THE COPYRIGHT HOLDER FOR THE SOFTWARE.
+
+Some jurisdictions do not allow certain warranty exclusions or limitations of liability. In those jurisdictions, the exclusions and limitations apply only to the maximum extent permitted by law. Nothing in this license excludes liability that cannot legally be excluded.
+
+11. No Endorsement; Reservation of Rights
+
+This license does not grant permission to use any person's name, logo, or trademark to imply endorsement. All rights not expressly granted are reserved.
+
+12. Acceptance
+
+By using, copying, modifying, or distributing the Software, you agree to the terms of this license. If you do not agree, do not use, copy, modify, or distribute the Software.
