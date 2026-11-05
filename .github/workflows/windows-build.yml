@@ -75,8 +75,9 @@ jobs:
         run: python build_windows.py
 
       - name: Locate signtool (Windows Kits) and export path
-        if: ${{ secrets.CERT_P12_B64 != '' }}
         shell: pwsh
+        env:
+          CERT_P12_B64: ${{ secrets.CERT_P12_B64 }}
         run: |
           $sn = $null
           $kits = "C:\Program Files (x86)\Windows Kits\10\bin"
@@ -90,9 +91,15 @@ jobs:
             $c = Get-Command signtool -ErrorAction SilentlyContinue
             if ($c) { $sn = $c.Source }
           }
-          if (-not $sn) { throw "signtool.exe not found" }
+          # 'secrets' is not readable in a step 'if:' — so the presence of
+          # the cert is checked here (env IS allowed to read secrets):
+          # with a cert, signtool is required; without one, signing is
+          # skipped by the steps below and a missing signtool is fine.
+          if ($env:CERT_P12_B64) {
+            if (-not $sn) { throw "signtool.exe not found (required for signing)" }
+            Add-Content -Path $env:GITHUB_ENV -Value "SIGNTOOL=$sn"
+          }
           Write-Host "signtool: $sn"
-          Add-Content -Path $env:GITHUB_ENV -Value "SIGNTOOL=$sn"
 
       - name: Authenticode sign binaries (only when CERT_P12_B64 secret exists)
         shell: pwsh
