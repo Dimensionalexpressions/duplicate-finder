@@ -1,0 +1,22 @@
+LIBRARY icuuc
+EXPORTS
+  UCNV_FROM_U_CALLBACK_SUBSTITUTE = icuuc78.UCNV_FROM_U_CALLBACK_SUBSTITUTE_78
+  UCNV_TO_U_CALLBACK_SUBSTITUTE   = icuuc78.UCNV_TO_U_CALLBACK_SUBSTITUTE_78
+  ucnv_cbFromUWriteUChars         = icuuc78.ucnv_cbFromUWriteUChars_78
+  ucnv_cbToUWriteUChars           = icuuc78.ucnv_cbToUWriteUChars_78
+  ucnv_close                      = icuuc78.ucnv_close_78
+  ucnv_countAvailable             = icuuc78.ucnv_countAvailable_78
+  ucnv_fromUCountPending          = icuuc78.ucnv_fromUCountPending_78
+  ucnv_fromUnicode                = icuuc78.ucnv_fromUnicode_78
+  ucnv_getAvailableName           = icuuc78.ucnv_getAvailableName_78
+  ucnv_getFromUCallBack           = icuuc78.ucnv_getFromUCallBack_78
+  ucnv_getMaxCharSize             = icuuc78.ucnv_getMaxCharSize_78
+  ucnv_getName                    = icuuc78.ucnv_getName_78
+  ucnv_getStandardName            = icuuc78.ucnv_getStandardName_78
+  ucnv_getToUCallBack             = icuuc78.ucnv_getToUCallBack_78
+  ucnv_open                       = icuuc78.ucnv_open_78
+  ucnv_reset                      = icuuc78.ucnv_reset_78
+  ucnv_setFromUCallBack           = icuuc78.ucnv_setFromUCallBack_78
+  ucnv_setToUCallBack             = icuuc78.ucnv_setToUCallBack_78
+  ucnv_toUCountPending            = icuuc78.ucnv_toUCountPending_78
+  ucnv_toUnicode                  = icuuc78.ucnv_toUnicode_78

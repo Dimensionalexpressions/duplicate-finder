@@ -23,11 +23,11 @@ No license fee, royalty, payment, donation, or other compensation is required fo
 
 3. Personal and Noncommercial Use
 
-Attribution is not required for Personal or Noncommercial Use. Individuals may use, modify, copy, and redistribute the Software for those purposes without providing a link or credit, provided they comply with applicable third-party licenses and preserve notices where required by Section 6.
+Personal or Noncommercial Use is free of any fee or royalty. Attribution (Section 4) is required for all use, including Personal or Noncommercial Use. Individuals may use, modify, copy, and redistribute the Software for those purposes, provided they comply with applicable third-party licenses and preserve the notices required by Section 6.
 
-4. Commercial Use and Attribution
+4. Attribution (required for all use)
 
-Every Commercial Use requires Attribution. This requirement applies even when the Software is used only internally, is not sold, is modified, or is incorporated into a larger product or service.
+Every use of the Software requires Attribution, including Personal and Noncommercial Use and Commercial Use. The requirement applies even when the Software is used only internally, is not sold, is modified, or is incorporated into a larger product or service.
 
 Attribution must be reasonably accessible to the people who use, receive, or are materially affected by the Software:
 
@@ -51,7 +51,7 @@ If you distribute the original Software or a derivative that contains it, the ap
 
 6. Notices and Third-Party Materials
 
-When redistributing the Software, do not remove or misrepresent existing copyright, license, or attribution notices. Include this license and applicable notices with redistributed copies.
+When redistributing the Software, do not remove or misrepresent existing copyright, license, or attribution notices. Include this license and applicable notices with redistributed copies. When you redistribute the Software, including as part of a commercial product, you must also include THIRD-PARTY-NOTICES.md (or an equivalent notice file) listing the third-party components shipped with it and their applicable licenses.
 
 The Software may include or depend on third-party software, libraries, assets, or other materials. Those components are governed by their own licenses and terms. This license does not replace, override, or expand rights under any third-party license. Review THIRD-PARTY-NOTICES.md and the relevant component licenses before redistribution.
 

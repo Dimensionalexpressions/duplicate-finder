@@ -1,0 +1,16 @@
+[project]
+name = "duplicate-finder"
+version = "1.0.0"
+description = "Duplicate file manager for pictures, videos and documents"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6>=6.6,<7",
+    "Pillow>=10",
+]
+
+[project.scripts]
+dupe-finder = "dupe_finder:main"
+
+[tool.uv]
+package = false
