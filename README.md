@@ -94,7 +94,8 @@ Support for continued development may be offered voluntarily through the officia
 
 Duplicate Finder bundles open-source media and OCR tools (FFmpeg, poppler,
 tesseract) plus the Qt/Python runtime; each keeps its own license. The full,
-versioned list is in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+versioned list — with **credits and thanks to every project** — is in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ## Project status
 
