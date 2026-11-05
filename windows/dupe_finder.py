@@ -5646,4 +5646,17 @@ def main():
     sys.exit(rc)
 
 if __name__ == "__main__":
-    main()
+    import multiprocessing
+    # A frozen spawn child (PyInstaller) re-runs this module as __main__ —
+    # there is no __mp_main__ re-import under freeze — so without this
+    # guard every pool worker would run main() and sit blocked in the
+    # modal directory-picker dialog, which is the 89%-forever hang on
+    # Windows (all workers alive but no chunk ever completes). The
+    # bootstrap names such a child "SpawnMain"; capture that BEFORE
+    # freeze_support() diverts it into the worker loop, then skip main()
+    # so the child does not open a ghost dialog after the loop ends.
+    _is_pool_child = (multiprocessing.current_process().name
+                      == "SpawnMain")
+    multiprocessing.freeze_support()
+    if not _is_pool_child:
+        main()
