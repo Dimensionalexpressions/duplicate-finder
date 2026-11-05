@@ -211,6 +211,49 @@ def _win_dark_titlebar(widget):
     except Exception:
         pass
 
+
+def _apply_dark_theme(app):
+    """Dark palette + (on Windows) dark caption bars, app-wide.
+
+    The stylesheet paints the main window's surfaces, but QMessageBox/
+    QDialog bodies fall back to the SYSTEM palette for anything it does
+    not state explicitly — white on a light Windows, where the
+    stylesheet's light text becomes unreadable (white on white). The
+    palette closes that gap for every window the app creates; on
+    Windows additionally every top-level window shown gets a dark DWM
+    caption bar (dialogs are spawned in many places, so an app-wide
+    Show filter is the only reliable way to cover them all).
+    """
+    from PySide6.QtCore import QEvent, QObject
+    from PySide6.QtGui import QColor, QPalette
+    pal = QPalette()
+    pal.setColor(QPalette.ColorRole.Window, QColor("#1b1f27"))
+    pal.setColor(QPalette.ColorRole.Base, QColor("#14171d"))
+    pal.setColor(QPalette.ColorRole.AlternateBase, QColor("#20262f"))
+    pal.setColor(QPalette.ColorRole.Text, QColor("#dde4ee"))
+    pal.setColor(QPalette.ColorRole.Button, QColor("#2a323e"))
+    pal.setColor(QPalette.ColorRole.ButtonText, QColor("#e6ebf3"))
+    pal.setColor(QPalette.ColorRole.WindowText, QColor("#dde4ee"))
+    pal.setColor(QPalette.ColorRole.Highlight, QColor("#2b4d75"))
+    pal.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
+    pal.setColor(QPalette.ColorRole.ToolTipBase, QColor("#2a323e"))
+    pal.setColor(QPalette.ColorRole.ToolTipText, QColor("#e6ebf3"))
+    pal.setColor(QPalette.ColorRole.PlaceholderText, QColor("#8a93a2"))
+    app.setPalette(pal)
+    if IS_WIN:
+        class _DarkCaption(QObject):
+            def eventFilter(self, obj, ev):
+                try:
+                    if (ev.type() == QEvent.Type.Show
+                            and obj.isWidgetType()
+                            and not obj.parentWidget()):
+                        _win_dark_titlebar(obj)
+                except Exception:
+                    pass
+                return False
+        app.installEventFilter(_DarkCaption(app))
+
+
 def _resolve_bin(name: str) -> str:
     """Runtime path for a bundled helper binary (ffmpeg/ffprobe, tesseract,
     pdftotext/pdftoppm).
@@ -1280,6 +1323,7 @@ def _image_near_pairs(idxs, recs, on_done=None):
         _pp_init(phb, ahb, cols, m, "bytes")
         chunk_fn = _image_near_chunk
     import concurrent.futures
+    from concurrent.futures.process import BrokenProcessPool
     from array import array
     workers = min(ncpu, 16)
     # Row a has m-1-a pairs, so split into chunks of ~equal PAIR counts
@@ -1298,28 +1342,126 @@ def _image_near_pairs(idxs, recs, on_done=None):
              if edges[k] < edges[k + 1]]
     master = array("i", range(m))
     done = 0
-    with concurrent.futures.ProcessPoolExecutor(
+
+    def _merge(wp, i0, i1):
+        nonlocal done
+        # merge this worker's union-find into the master (each
+        # non-trivial parent entry is one union edge)
+        for i in range(m):
+            j = wp[i]
+            if j != i:
+                ra = _dsu_find(master, i)
+                rb = _dsu_find(master, j)
+                if ra != rb:
+                    master[rb] = ra
+        done += ((i1 - i0) * (m - 1)
+                 - (i1 * (i1 - 1) - i0 * (i0 - 1)) // 2)
+        if on_done:
+            on_done(done)
+
+    def _pool_has_dead_worker(ex):
+        """True if any pool worker process has exited, False if all are
+        alive, None when the layout can't be inspected."""
+        try:
+            procs = list(ex._processes.values())
+        except Exception:
+            return None
+        for p in procs:
+            try:
+                if p.exitcode is not None:
+                    return True
+            except Exception:
+                pass
+        return False
+
+    initargs = (ph if mode == "numpy" else phb,
+                ah if mode == "numpy" else ahb, cols, m, mode)
+
+    def _chunk_pairs(i0, i1):
+        return ((i1 - i0) * (m - 1)
+                - (i1 * (i1 - 1) - i0 * (i0 - 1)) // 2)
+
+    def _abandon(ex):
+        """Tear a pool down without ever blocking the scan. The manager
+        thread is marked daemon first — a manager stuck mid-spawn (its
+        child never waking up) is NON-daemon by default and would hold
+        up process exit. shutdown() itself only blocks on the manager's
+        _shutdown_lock, which a stuck manager holds, so it runs on a
+        helper thread with a small budget; a leftover helper is daemon
+        and the pool's own teardown then happens via GC (the manager
+        watches the executor with a weakref and exits on collection)."""
+        try:
+            t = getattr(ex, "_executor_manager_thread", None)
+            if t is not None and t.is_alive():
+                t.daemon = True
+        except Exception:
+            pass
+        def _shut():
+            try:
+                ex.shutdown(wait=False, cancel_futures=True)
+            except Exception:
+                pass
+        h = threading.Thread(target=_shut, daemon=True)
+        h.start()
+        h.join(3)
+
+    pending = list(tasks)
+    # A worker that dies mid-chunk (killed at the memory commit limit on
+    # a low-RAM machine, a native fault, ...) can leave its future
+    # pending FOREVER — observed on a frozen Windows build, where a scan
+    # sat at 90% for hours with all workers gone and no error (the
+    # pool's manager thread was stuck spawning a replacement whose child
+    # never woke up, so no result ever arrived). So: watch the pool —
+    # a dead worker, a broken pool, or no chunk completing within a
+    # scaled budget all retry the unfinished chunks on a fresh pool (up
+    # to 3 attempts), then the rest runs serially in this process. A
+    # scan must never hang.
+    for _attempt in range(3):
+        futs = {}
+        ex = concurrent.futures.ProcessPoolExecutor(
             max_workers=workers, initializer=_pp_init,
-            initargs=(ph if mode == "numpy" else phb,
-                      ah if mode == "numpy" else ahb,
-                      cols, m, mode)) as ex:
-        futs = {ex.submit(chunk_fn, i0, i1): (i0, i1) for i0, i1 in tasks}
-        for fut in concurrent.futures.as_completed(futs):
-            wp = fut.result()
-            # merge this worker's union-find into the master (each
-            # non-trivial parent entry is one union edge)
-            for i in range(m):
-                j = wp[i]
-                if j != i:
-                    ra = _dsu_find(master, i)
-                    rb = _dsu_find(master, j)
-                    if ra != rb:
-                        master[rb] = ra
-            i0, i1 = futs[fut]
-            done += ((i1 - i0) * (m - 1)
-                     - (i1 * (i1 - 1) - i0 * (i0 - 1)) // 2)
-            if on_done:
-                on_done(done)
+            initargs=initargs)
+        try:
+            for i0, i1 in pending:
+                futs[ex.submit(chunk_fn, i0, i1)] = (i0, i1)
+            last_progress = time.time()
+            while futs:
+                try:
+                    fut = next(concurrent.futures.as_completed(
+                        futs, timeout=5))
+                except StopIteration:
+                    break
+                except concurrent.futures.TimeoutError:
+                    # nothing completed in 5 s — a dead worker or a
+                    # manager stuck in a replacement spawn means no
+                    # progress will ever come; a merely slow chunk is
+                    # fine until its scaled budget runs out
+                    max_left = max((_chunk_pairs(i0, i1)
+                                    for i0, i1 in futs.values()),
+                                   default=0)
+                    budget = max(180.0, 3.0 * max_left / 300_000.0 + 60.0)
+                    if (time.time() - last_progress > budget
+                            or _pool_has_dead_worker(ex)):
+                        break
+                    continue
+                i0, i1 = futs[fut]
+                wp = fut.result()      # may raise BrokenProcessPool —
+                futs.pop(fut)          # pop only after a clean result, so
+                _merge(wp, i0, i1)     # a broken chunk stays in `pending`
+                last_progress = time.time()
+        except BrokenProcessPool:
+            pass
+        _abandon(ex)
+        pending = list(futs.values())
+        if not pending:
+            break
+    if pending:
+        # the pool kept losing workers (or never made progress): run the
+        # remaining chunks serially here — slower, but the scan finishes.
+        # The main process' _pp_state was initialized above, so the
+        # chunk function runs as-is.
+        for i0, i1 in pending:
+            _merge(chunk_fn(i0, i1), i0, i1)
     return master
 
 
@@ -2336,6 +2478,7 @@ STYLE_QSS = """
 QWidget { color: #dde4ee; font-size: 13px; }
 QLabel { background: transparent; }
 QMainWindow { background: #1b1f27; }
+QDialog, QMessageBox { background: #1b1f27; }
 QListWidget {
     background: #14171d; border: 1px solid #2c333f; border-radius: 8px;
     padding: 4px; selection-background-color: #2b4d75;
@@ -5160,6 +5303,10 @@ def run_gui(root: Path, include_hidden=False, all_dirs=False):
         return box.exec() == QMessageBox.Yes
 
     app = QApplication.instance() or QApplication(sys.argv)
+    # dark palette for dialogs + dark caption bars on every window
+    # (see _apply_dark_theme — without it a QMessageBox body falls back
+    # to the system palette: white on a light Windows, white on white)
+    _apply_dark_theme(app)
     # hover descriptions: hold the mouse over a button for 2 seconds
     # before the explanation appears (the user asked for a real wait,
     # so a casual hover never covers the buttons with text; 5 s was
