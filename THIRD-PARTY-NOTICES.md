@@ -122,6 +122,49 @@ Windows kernel APIs and the `api-ms-win-*` API sets (Win10/Win11 native)
 are supplied by Windows itself. The release intentionally does **not** ship
 MSYS2 `api-ms-win-*.dll` subset files so the OS's full API sets are used.
 
+## Credits & Thanks
+
+Duplicate Finder stands on the shoulders of excellent open-source projects. A
+big thank-you to every team and project below — this app would not exist
+without them:
+
+- **FFmpeg** — [ffmpeg.org](https://ffmpeg.org) — the engine behind all video
+  frame extraction and duration probing.
+- **BtbN FFmpeg Builds** — [github.com/BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) —
+  the ready-to-run Windows GPL build of FFmpeg.
+- **x264 / x265 / SVT-AV1 / libvpx / OpenH264 / Opus / Theora / LAME / kvazaar** —
+  the open codecs inside the FFmpeg build that make every video format readable.
+- **poppler** — [poppler.freedesktop.org](https://poppler.freedesktop.org) — PDF
+  text extraction and page rendering.
+- **Tesseract OCR** — [github.com/tesseract-ocr/tesseract](https://github.com/tesseract-ocr/tesseract) —
+  the OCR that lets scanned documents and images be de-duplicated by their text.
+- **tessdata_fast** — [github.com/tesseract-ocr/tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast) —
+  the fast English OCR language model.
+- **Leptonica** — [github.com/leptonica/leptonica](https://github.com/leptonica/leptonica) —
+  image preprocessing for Tesseract.
+- **Qt** — [qt.io](https://www.qt.io) — the graphics toolkit behind the interface.
+- **PySide6 / shiboken6** — [pypi.org/project/PySide6](https://pypi.org/project/PySide6/) —
+  the official Python bindings for Qt.
+- **Python** — [python.org](https://www.python.org), thank-you Python Software Foundation.
+- **Pillow** — [pillow.readthedocs.io](https://pillow.readthedocs.io) — image loading
+  and thumbnail work.
+- **PyInstaller** — [pyinstaller.org](https://pyinstaller.org) — packages the app
+  into the standalone executable.
+- **Unicode, Inc. (ICU)** — [unicode.org](https://www.unicode.org) — Unicode text
+  and locale data.
+- **OpenSSL** — [openssl.org](https://www.openssl.org) — cryptography support.
+- **FreeType, HarfBuzz, Pango, Cairo, fribidi, graphite2, fontconfig** — the
+  font and text-shaping stack that lets documents render correctly.
+- **libjpeg-turbo, OpenJPEG, libtiff, libwebP (Google), libpng** — image
+  decoders for every format.
+- **zlib, Zstandard, LZ4, XZ, Brotli, bzip2, b2, snappy** — compression
+  libraries used by the bundled tools.
+- **Microsoft Visual C++ runtime** — [learn.microsoft.com](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
+  and **GCC / libstdc++ / WinPthreads** — [gcc.gnu.org](https://gcc.gnu.org) —
+  the C/C++ runtimes that keep the bundled tools running.
+
+The versioned, per-component license list remains in the sections above.
+
 ## Obligation summary for redistributors of Duplicate Finder
 
 1. Keep this file (or its substance) with redistributed copies.
