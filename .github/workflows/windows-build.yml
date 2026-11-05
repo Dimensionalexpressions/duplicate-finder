@@ -74,6 +74,26 @@ jobs:
         working-directory: windows
         run: python build_windows.py
 
+      - name: Locate signtool (Windows Kits) and export path
+        if: ${{ secrets.CERT_P12_B64 != '' }}
+        shell: pwsh
+        run: |
+          $sn = $null
+          $kits = "C:\Program Files (x86)\Windows Kits\10\bin"
+          if (Test-Path $kits) {
+            foreach ($d in (Get-ChildItem $kits -Directory | Where-Object Name -match '^\d' | Sort-Object Name -Descending)) {
+              $c = Join-Path $d.FullName "x64\signtool.exe"
+              if (Test-Path $c) { $sn = $c; break }
+            }
+          }
+          if (-not $sn) {
+            $c = Get-Command signtool -ErrorAction SilentlyContinue
+            if ($c) { $sn = $c.Source }
+          }
+          if (-not $sn) { throw "signtool.exe not found" }
+          Write-Host "signtool: $sn"
+          Add-Content -Path $env:GITHUB_ENV -Value "SIGNTOOL=$sn"
+
       - name: Authenticode sign binaries (only when CERT_P12_B64 secret exists)
         shell: pwsh
         env:
@@ -86,9 +106,13 @@ jobs:
             exit 0
           }
           [IO.File]::WriteAllBytes("cert.p12", [Convert]::FromBase64String($env:CERT_P12_B64))
+          # Trust the (self-signed) root so signtool verify /pa can chain it.
+          $pw = ConvertTo-SecureString $env:CERT_P12_PASSWORD -AsPlainText -Force
+          Import-PfxCertificate -FilePath cert.p12 -CertStoreLocation Cert:\LocalMachine\Root -Password $pw | Out-Null
+          Write-Host "trusted root imported"
           Get-ChildItem -Path $dir -Recurse -Include *.exe, *.dll | ForEach-Object {
             Write-Host "signing $($_.FullName)"
-            signtool sign /f cert.p12 /p $env:CERT_P12_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $_.FullName
+            & $env:SIGNTOOL sign /f cert.p12 /p $env:CERT_P12_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $_.FullName
             if ($LASTEXITCODE -ne 0) { throw "signtool sign failed: $($_.FullName)" }
           }
           Write-Host "signed $((Get-ChildItem -Path $dir -Recurse -Include *.exe, *.dll | Measure-Object).Count) binaries"
@@ -119,10 +143,10 @@ jobs:
           }
           $zip = Get-ChildItem *.zip | Select-Object -First 1
           Write-Host "signing $($zip.FullName)"
-          signtool sign /f cert.p12 /p $env:CERT_P12_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $zip.FullName
+          & $env:SIGNTOOL sign /f cert.p12 /p $env:CERT_P12_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $zip.FullName
           if ($LASTEXITCODE -ne 0) { throw "signtool sign failed: $($zip.FullName)" }
           Write-Host "=== signtool verify /pa /v ==="
-          signtool verify /pa /v "windows\dist\dupe_finder\dupe_finder.exe"
+          & $env:SIGNTOOL verify /pa /v "windows\dist\dupe_finder\dupe_finder.exe"
           if ($LASTEXITCODE -ne 0) { throw "signtool verify failed" }
           Remove-Item cert.p12 -Force
 
