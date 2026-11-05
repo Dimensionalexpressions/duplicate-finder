@@ -1361,14 +1361,20 @@ def _image_near_pairs(idxs, recs, on_done=None):
 
     def _pool_has_dead_worker(ex):
         """True if any pool worker process has exited, False if all are
-        alive, None when the layout can't be inspected."""
+        alive, None when the layout can't be inspected. poll() is called
+        explicitly: when the pool's manager thread is stuck (e.g. mid
+        replacement-spawn on a frozen build) it never polls its workers,
+        so p.exitcode alone stays None forever and a dead worker is
+        invisible — that is exactly the 90%-forever hang, and it forced
+        every retry to wait out the full no-progress budget instead of
+        firing within seconds of the death."""
         try:
             procs = list(ex._processes.values())
         except Exception:
             return None
         for p in procs:
             try:
-                if p.exitcode is not None:
+                if p.poll() is not None:
                     return True
             except Exception:
                 pass
@@ -1418,8 +1424,12 @@ def _image_near_pairs(idxs, recs, on_done=None):
     # scan must never hang.
     for _attempt in range(3):
         futs = {}
+        # a worker that dies mid-chunk on a low-RAM machine is usually an
+        # OOM kill at the commit limit, so each retry runs with FEWER
+        # workers (16 -> 8 -> 4): less peak commit, same total work.
+        attempt_workers = max(2, workers // (2 ** _attempt))
         ex = concurrent.futures.ProcessPoolExecutor(
-            max_workers=workers, initializer=_pp_init,
+            max_workers=attempt_workers, initializer=_pp_init,
             initargs=initargs)
         try:
             for i0, i1 in pending:
