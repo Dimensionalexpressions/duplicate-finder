@@ -3390,10 +3390,17 @@ def run_gui(root: Path, include_hidden=False, all_dirs=False):
             for pos in range(i0, n):
                 e = self._layout[pos]
                 if isinstance(e, str):
+                    if col > 0:
+                        # a section divider must start a fresh row: if the
+                        # current row already holds cards, placing the
+                        # full-width label in the same row made it render
+                        # ON TOP of those cards (mixed exact+near groups)
+                        row += 1
+                        col = 0
                     lab = QLabel(e)
                     lab.setStyleSheet(
                         "color:#8fa3c7;font-size:13px;font-weight:bold;"
-                        "padding:10px 2px 2px 2px;")
+                        "padding:16px 2px 2px 2px;")
                     self._grid.addWidget(lab, row, 0, 1, per_row)
                     row += 1
                     col = 0

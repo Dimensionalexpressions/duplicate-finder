@@ -2,6 +2,8 @@
 
 A Python-based duplicate file manager for pictures, videos, and documents.
 
+![Duplicate Finder — duplicate selection screen](docs/images/00-screenshot.png)
+
 ## Publisher
 
 **Dimensional Expressions Software**  
