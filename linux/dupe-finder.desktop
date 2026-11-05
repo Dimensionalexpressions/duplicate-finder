@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Duplicate Finder
+GenericName=Image, Video and Document Duplicate Finder
+Comment=Scan a folder for duplicate images, videos and documents (incl. OCR text de-dup), verify them side-by-side, and trash the extras. Drag a folder onto the icon to scan it directly.
+Exec=dupe-finder %u
+Icon=osd-duplicate
+Terminal=false
+Categories=Utility;Graphics;

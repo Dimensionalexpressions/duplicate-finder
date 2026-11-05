@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+dist/
+build/
+*.spec
+.venv/
+.venv-build/
+vendor/
+cert.p12
+ffmpeg.zip
+dupe-test-folder/
+_selftest/
+sheets/
