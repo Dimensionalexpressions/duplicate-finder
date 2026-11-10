@@ -4,6 +4,17 @@ A Python-based duplicate file manager for pictures, videos, and documents.
 
 ![Duplicate Finder — duplicate selection screen](docs/images/00-screenshot.png)
 
+## Downloads
+
+Prebuilt apps — download, unzip, run. No installer needed.
+
+| Platform | Download |
+|---|---|
+| Windows 10/11 (x64) | [dupe-finder-1.0.0-win64.zip](https://github.com/Dimensionalexpressions/duplicate-finder/releases/download/v1.0.0/dupe-finder-1.0.0-win64.zip) (~277 MB) |
+| Linux (x86_64) | [dupe-finder-1.0.0-linux-x86_64.zip](https://github.com/Dimensionalexpressions/duplicate-finder/releases/download/v1.0.0/dupe-finder-1.0.0-linux-x86_64.zip) (~527 MB) |
+
+Latest builds are always on the [Releases page](https://github.com/Dimensionalexpressions/duplicate-finder/releases).
+
 ## Publisher
 
 **Dimensional Expressions Software**  
