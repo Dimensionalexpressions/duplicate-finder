@@ -61,6 +61,76 @@ python3 dupe_finder.py ~/Downloads        # any folder, or omit for the picker
 A standalone Linux build (PyInstaller) can be produced with
 `linux/build_linux.sh`. See [linux/README.md](linux/README.md).
 
+### Arch Linux
+
+```bash
+sudo pacman -S --needed python ffmpeg poppler-utils tesseract tesseract-data-eng
+cd linux
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python3 dupe_finder.py ~/Downloads        # any folder, or omit for the picker
+```
+
+(Or use the flake below — Arch ships a first-class Nix integration, so
+`nix run` works there too.)
+
+### Nix / NixOS (flake)
+
+This repo ships a [flake](flake.nix) — the app plus its runtime tools
+(Python, PySide6, Pillow, ffmpeg, poppler, tesseract) in one hermetic
+package.
+
+**Run it without installing** — by git URL, straight from either remote:
+
+```bash
+# GitHub mirror (public, works anywhere)
+nix run github:Dimensionalexpressions/duplicate-finder
+
+# Self-hosted Forgejo on git.cekfam.com (LAN / your SSH key)
+nix run git+ssh://git@git.cekfam.com:23231/kieros/duplicate-finder
+```
+
+Pass the folder to scan as an argument:
+
+```bash
+nix run github:Dimensionalexpressions/duplicate-finder ~/Downloads
+```
+
+> **Note on the `git.cekfam.com` form:** Nix fetches the repo with your
+> normal `git`/`ssh`, so `~/.ssh/config` must cover the *real hostname*
+> (an alias alone won't match). Add:
+>
+> ```
+> Host git.cekfam.com
+>   Port 23231
+>   User git
+>   IdentityFile ~/.ssh/your-key
+> ```
+
+**Install it permanently** (puts `dupe-finder` on your PATH):
+
+```bash
+nix profile install github:Dimensionalexpressions/duplicate-finder
+dupe-finder ~/Downloads
+```
+
+**NixOS / Home Manager** (as a flake input):
+
+```nix
+# inputs
+inputs.duplicate-finder.url = "github:Dimensionalexpressions/duplicate-finder";
+
+# home-manager home.nix
+home.packages = [
+  inputs.duplicate-finder.packages.${pkgs.system}.dupe-finder
+];
+```
+
+`nix develop` in this repo gives a dev shell with PySide6, Pillow,
+PyInstaller, ffmpeg, poppler-utils and tesseract.
+
+Packaging background and size trade-offs: [docs/PACKAGING.md](docs/PACKAGING.md).
+
 ## User guide
 
 **[docs/GUIDE.md](docs/GUIDE.md)** — step-by-step how-to with annotated
