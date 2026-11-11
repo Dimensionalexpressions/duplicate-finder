@@ -11,6 +11,13 @@
 # derivations in flake.nix are built locally. (linux -> aarch64/darwin
 # cross-compilation is not viable for Qt/PySide6 in nixpkgs 25.05, so no
 # cross jobs are used.)
+#
+# Installer notes (nix 2.35.x):
+#   - flakes and nix-command are stable by default; no experimental
+#     feature flags needed.
+#   - `--no-daemon` (single-user) is only valid on Linux; macOS installs
+#     multi-user (daemon) by default and needs sudo (available on GHA).
+#   - `--yes` accepts all prompts non-interactively.
 name: flake
 
 on:
@@ -32,12 +39,16 @@ jobs:
 
       - name: Install Nix
         env:
-          # Skip subscribing to the nixpkgs channel (saves minutes; we
-          # only need the nix command + flake support).
+          # Skip subscribing to the nixpkgs channel (we only need the
+          # nix command; saves several minutes per job).
           NIX_INSTALLER_NO_CHANNEL_ADD: 1
         run: |
           curl -fsSL https://nixos.org/nix/install -o /tmp/nix-install
-          sh /tmp/nix-install --no-daemon --extra-experimental-features "nix-command flakes"
+          if [ "$(uname -s)" = "Darwin" ]; then
+            sh /tmp/nix-install --yes
+          else
+            sh /tmp/nix-install --no-daemon --yes
+          fi
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
           # Fallback: the real location nix was installed to, in case the
           # per-user profile symlink is missing/broken on this runner.
@@ -45,8 +56,8 @@ jobs:
           # Fail this step (not the next one) if the install did not land.
           "$HOME/.nix-profile/bin/nix" --version || {
             echo "::error::nix missing after install"
-            ls -la "$HOME"
-            ls -la /nix 2>&1
+            ls -la "$HOME" || true
+            ls -la /nix || true
             exit 1
           }
 
@@ -75,12 +86,16 @@ jobs:
 
       - name: Install Nix
         env:
-          # Skip subscribing to the nixpkgs channel (saves minutes; we
-          # only need the nix command + flake support).
+          # Skip subscribing to the nixpkgs channel (we only need the
+          # nix command; saves several minutes per job).
           NIX_INSTALLER_NO_CHANNEL_ADD: 1
         run: |
           curl -fsSL https://nixos.org/nix/install -o /tmp/nix-install
-          sh /tmp/nix-install --no-daemon --extra-experimental-features "nix-command flakes"
+          if [ "$(uname -s)" = "Darwin" ]; then
+            sh /tmp/nix-install --yes
+          else
+            sh /tmp/nix-install --no-daemon --yes
+          fi
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
           # Fallback: the real location nix was installed to, in case the
           # per-user profile symlink is missing/broken on this runner.
@@ -88,8 +103,8 @@ jobs:
           # Fail this step (not the next one) if the install did not land.
           "$HOME/.nix-profile/bin/nix" --version || {
             echo "::error::nix missing after install"
-            ls -la "$HOME"
-            ls -la /nix 2>&1
+            ls -la "$HOME" || true
+            ls -la /nix || true
             exit 1
           }
 
