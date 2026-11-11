@@ -28,16 +28,32 @@ jobs:
     name: flake check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Nix
+        env:
+          # Skip subscribing to the nixpkgs channel (saves minutes; we
+          # only need the nix command + flake support).
+          NIX_INSTALLER_NO_CHANNEL_ADD: 1
         run: |
           curl -fsSL https://nixos.org/nix/install -o /tmp/nix-install
           sh /tmp/nix-install --no-daemon --extra-experimental-features "nix-command flakes"
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
+          # Fallback: the real location nix was installed to, in case the
+          # per-user profile symlink is missing/broken on this runner.
+          echo "/nix/var/nix/profiles/default/bin" >> "$GITHUB_PATH"
+          # Fail this step (not the next one) if the install did not land.
+          "$HOME/.nix-profile/bin/nix" --version || {
+            echo "::error::nix missing after install"
+            ls -la "$HOME"
+            ls -la /nix 2>&1
+            exit 1
+          }
 
       - name: Check flake
-        run: nix flake check
+        run: |
+          command -v nix || { echo "::error::nix not on PATH: $PATH"; exit 99; }
+          nix flake check
 
   build:
     name: build ${{ matrix.system }}
@@ -55,16 +71,32 @@ jobs:
           - system: aarch64-darwin
             runner: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Nix
+        env:
+          # Skip subscribing to the nixpkgs channel (saves minutes; we
+          # only need the nix command + flake support).
+          NIX_INSTALLER_NO_CHANNEL_ADD: 1
         run: |
           curl -fsSL https://nixos.org/nix/install -o /tmp/nix-install
           sh /tmp/nix-install --no-daemon --extra-experimental-features "nix-command flakes"
           echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
+          # Fallback: the real location nix was installed to, in case the
+          # per-user profile symlink is missing/broken on this runner.
+          echo "/nix/var/nix/profiles/default/bin" >> "$GITHUB_PATH"
+          # Fail this step (not the next one) if the install did not land.
+          "$HOME/.nix-profile/bin/nix" --version || {
+            echo "::error::nix missing after install"
+            ls -la "$HOME"
+            ls -la /nix 2>&1
+            exit 1
+          }
 
       - name: Build package
-        run: nix build ".#packages.${{ matrix.system }}.dupe-finder" --print-build-logs
+        run: |
+          command -v nix || { echo "::error::nix not on PATH: $PATH"; exit 99; }
+          nix build ".#packages.${{ matrix.system }}.dupe-finder" --print-build-logs
 
       # Every runner can execute its own native binary; --help exits before
       # any GUI init but exercises the full Python/PySide6 import chain.
