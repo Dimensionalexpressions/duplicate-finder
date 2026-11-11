@@ -1,0 +1,73 @@
+# Builds the Nix flake for every supported system on push.
+#
+# Each system builds natively on a runner of its own architecture:
+#   x86_64-linux   -> ubuntu-latest
+#   aarch64-linux  -> ubuntu-24.04-arm
+#   x86_64-darwin  -> macos-13 (Intel)
+#   aarch64-darwin -> macos-latest (Apple Silicon)
+#
+# Native builds keep this simple: every dependency (PySide6, ffmpeg,
+# tesseract, ...) comes from cache.nixos.org, and only the small custom
+# derivations in flake.nix are built locally. (linux -> aarch64/darwin
+# cross-compilation is not viable for Qt/PySide6 in nixpkgs 25.05, so no
+# cross jobs are used.)
+name: flake
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flake-check:
+    name: flake check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        run: |
+          curl -fsSL https://nixos.org/nix/install -o /tmp/nix-install
+          sh /tmp/nix-install --no-daemon --extra-experimental-features "nix-command flakes"
+          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
+
+      - name: Check flake
+        run: nix flake check
+
+  build:
+    name: build ${{ matrix.system }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: x86_64-linux
+            runner: ubuntu-latest
+          - system: aarch64-linux
+            runner: ubuntu-24.04-arm
+          - system: x86_64-darwin
+            runner: macos-13
+          - system: aarch64-darwin
+            runner: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        run: |
+          curl -fsSL https://nixos.org/nix/install -o /tmp/nix-install
+          sh /tmp/nix-install --no-daemon --extra-experimental-features "nix-command flakes"
+          echo "$HOME/.nix-profile/bin" >> "$GITHUB_PATH"
+
+      - name: Build package
+        run: nix build ".#packages.${{ matrix.system }}.dupe-finder" --print-build-logs
+
+      # Every runner can execute its own native binary; --help exits before
+      # any GUI init but exercises the full Python/PySide6 import chain.
+      # `result` (no dot): nix build's symlink name for multi-output pkgs.
+      - name: Smoke test
+        run: ./result/bin/dupe-finder --help
