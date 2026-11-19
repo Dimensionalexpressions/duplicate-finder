@@ -187,3 +187,13 @@ versioned list — with **credits and thanks to every project** — is in
   (scan, near-duplicate grouping, OCR document de-duplication all pass);
   CI rebuilds it on every push to `main`.
 - **Linux**: run from source as above; standalone build script provided.
+
+<!-- report-a-bug:start -->
+## Report a bug
+
+Something broken, or something that should work differently? Open an issue on this repository's
+**Issues** page (GitHub above, or the mirror at git.cekfam.com — we read both). The form asks a
+few short questions — short answers are fine, they are there so we can re-test your exact case.
+If Duplicate Finder trashed or removed something you did not choose, answer the **first** question
+on the form, and please do not empty your Recycle Bin / Trash until we have helped.
+<!-- report-a-bug:end -->
