@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Duplicate Finder on GitHub (this repository)
+    url: https://github.com/Dimensionalexpressions/duplicate-finder
+    about: Issues and releases.
+  - name: Duplicate Finder on our own git (mirror)
+    url: https://git.cekfam.com/kieros/duplicate-finder
+    about: Same code, same issues - file on either site, we read both.
