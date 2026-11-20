@@ -196,4 +196,17 @@ Something broken, or something that should work differently? Open an issue on th
 few short questions — short answers are fine, they are there so we can re-test your exact case.
 If Duplicate Finder trashed or removed something you did not choose, answer the **first** question
 on the form, and please do not empty your Recycle Bin / Trash until we have helped.
+
+One command fills in the technical part (versions, filesystem type, whether that drive is
+case-insensitive). Names are masked by default, so it is safe to paste:
+
+```
+./scripts/bugreport.sh --command "what you did" --path "the folder you pointed it at"
+```
+
+On Windows, run it from Git Bash; without it, just say your Windows version and where the folder
+lives (internal disk, external drive, network share, OneDrive/Dropbox).
+
+What is asked, and why, is written out in [REPORTING.md](REPORTING.md).
+
 <!-- report-a-bug:end -->
